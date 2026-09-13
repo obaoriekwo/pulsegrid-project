@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PulseGrid — Real-Time IoT Sensor &amp; Predictive Maintenance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="sidebar-scrim" id="scrim"></div>
+
+<div class="app">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">📡</div>
+      <div class="brand-text">
+        <div class="brand-title">PulseGrid</div>
+        <div class="brand-sub">IoT Analytics</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Monitoring</div>
+      <button class="nav-item active" data-page="overview"><span class="nav-icon">📊</span> Overview</button>
+      <button class="nav-item" data-page="sensors"><span class="nav-icon">🌡️</span> Live Sensors</button>
+      <button class="nav-item" data-page="equipment"><span class="nav-icon">⚙️</span> Equipment</button>
+      <button class="nav-item" data-page="anomalies"><span class="nav-icon">🚨</span> Anomalies</button>
+      <button class="nav-item" data-page="maintenance"><span class="nav-icon">🛠️</span> Maintenance</button>
+
+      <div class="nav-label">Pipeline</div>
+      <button class="nav-item" data-page="etl"><span class="nav-icon">🔄</span> Run Ingestion</button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <span class="dot-live"></span>
+      <span id="sidebar-status">500 sensors streaming</span>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Toggle menu">☰</button>
+        <div>
+          <div class="page-title" id="pageTitle">Real-Time Overview</div>
+          <div class="page-sub" id="pageSub">Time-series telemetry &amp; anomaly detection across the sensor fleet</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn" id="goEtlBtn"><span>🔄</span><span class="full">Run Ingestion</span></button>
+        <button class="btn btn-primary" id="refreshBtn"><span id="refreshIcon">↻</span><span class="full">Refresh</span></button>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- live signal strip, shown on every page -->
+      <div class="signal-strip">
+        <span class="sig-label">⬤ LIVE TELEMETRY</span>
+        <svg viewBox="0 0 800 34" preserveAspectRatio="none"><path class="sig-wave" id="sigWavePath" d=""/></svg>
+        <span class="sig-readout" id="sigReadout">— · — · —</span>
+      </div>
+
+      <!-- ===================== PAGE: OVERVIEW ===================== -->
+      <section class="page active" id="page-overview">
+        <div class="impact-banner">
+          <div class="impact-figure" id="impactAnomalyRate">—</div>
+          <div class="impact-text"><b>Live anomaly detection, not a canned demo.</b> Every reading shown here is scored by a trained IsolationForest model as it's ingested — the anomaly rate above is computed from this session's actual data, not a fixed marketing number.</div>
+        </div>
+
+        <div class="kpi-grid" id="kpi-grid-overview"></div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Sensor Trend<span>Fleet average, per reading</span></div>
+              <div class="pill-group" id="trendToggle">
+                <button class="pill active" data-metric="temp">Temp</button>
+                <button class="pill" data-metric="vibration">Vibration</button>
+                <button class="pill" data-metric="power">Power</button>
+              </div>
+            </div>
+            <div class="chart-wrap h-300"><canvas id="chartTrend"></canvas></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Operational Status<span>Fleet-wide snapshot</span></div>
+            </div>
+            <div class="chart-wrap h-220"><canvas id="chartStatusDonut"></canvas></div>
+            <div class="legend-list" id="legendStatus"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Fault Count Over Time<span>Per-minute, across the current monitoring window</span></div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartDailyFaults"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Highest-Risk Equipment<span>By fault count</span></div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="tableTopEquipmentMini">
+                <thead><tr><th>Equipment</th><th>Faults</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== PAGE: LIVE SENSORS ===================== -->
+      <section class="page" id="page-sensors">
+        <div class="kpi-grid" id="kpi-grid-sensors"></div>
+
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="panel-head">
+            <div class="panel-title">Multi-Metric Telemetry<span>Voltage, current &amp; power over time</span></div>
+          </div>
+          <div class="chart-wrap h-300"><canvas id="chartMultiMetric"></canvas></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Temperature vs. Vibration<span>Anomaly clustering — red points are fault events</span></div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartScatter"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">External Conditions<span>Weather impact on readings</span></div>
+            </div>
+            <div class="chart-wrap h-220"><canvas id="chartExternal"></canvas></div>
+            <div class="legend-list" id="legendExternal"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Sensor Readings<span>Most recent 500 readings, all sensors</span></div>
+            <input class="search-input" id="searchSensors" placeholder="Search sensor or equipment…">
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="tableSensors">
+              <thead><tr>
+                <th data-key="rank">#</th>
+                <th data-key="t">Timestamp</th>
+                <th data-key="sensor">Sensor</th>
+                <th data-key="equipment">Equipment</th>
+                <th data-key="temp">Temp (°C)</th>
+                <th data-key="vibration">Vibration</th>
+                <th data-key="power">Power (W)</th>
+                <th data-key="status">Status</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== PAGE: EQUIPMENT ===================== -->
+      <section class="page" id="page-equipment">
+        <div class="kpi-grid" id="kpi-grid-equipment"></div>
+
+        <div class="section-heading" style="margin-top:6px;">
+          <h1 style="font-size:19px;">Highest-Risk Equipment</h1>
+          <p>Ranked by fault count across all monitored sensors</p>
+        </div>
+        <div class="eq-grid" id="eqGrid"></div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Criticality Mix<span>Equipment by risk classification</span></div>
+            </div>
+            <div class="chart-wrap h-220"><canvas id="chartCriticality"></canvas></div>
+            <div class="legend-list" id="legendCriticality"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Dependency Structure<span>Independent vs. dependent equipment</span></div>
+            </div>
+            <div class="chart-wrap h-220"><canvas id="chartRelationship"></canvas></div>
+            <div class="legend-list" id="legendRelationship"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">All Equipment<span>Sortable, searchable directory</span></div>
+            <input class="search-input" id="searchEquipment" placeholder="Search equipment ID…">
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="tableEquipment">
+              <thead><tr>
+                <th data-key="rank">#</th>
+                <th data-key="id">Equipment</th>
+                <th data-key="sensors">Sensors</th>
+                <th data-key="criticality">Criticality</th>
+                <th data-key="avg_temp">Avg Temp</th>
+                <th data-key="avg_vibration">Avg Vibration</th>
+                <th data-key="faults">Faults</th>
+                <th data-key="pm_triggers">PM Triggers</th>
+                <th data-key="maint_cost">Maint. Cost</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== PAGE: ANOMALIES ===================== -->
+      <section class="page" id="page-anomalies">
+        <div class="kpi-grid" id="kpi-grid-anomalies"></div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Failure Types<span>Classified fault events</span></div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartFailureTypes"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Predictive Maintenance Triggers<span>Per-minute, across the current monitoring window</span></div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartPMTrend"></canvas></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Anomaly Log<span>Fault detections &amp; predictive maintenance triggers, most severe first</span></div>
+            <input class="search-input" id="searchAnomalies" placeholder="Search sensor or equipment…">
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="tableAnomalies">
+              <thead><tr>
+                <th data-key="rank">#</th>
+                <th data-key="t">Timestamp</th>
+                <th data-key="sensor">Sensor</th>
+                <th data-key="equipment">Equipment</th>
+                <th data-key="failure_type">Failure Type</th>
+                <th data-key="temp">Temp (°C)</th>
+                <th data-key="vibration">Vibration</th>
+                <th data-key="criticality">Criticality</th>
+                <th data-key="severity">Severity</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== PAGE: MAINTENANCE ===================== -->
+      <section class="page" id="page-maintenance">
+        <div class="kpi-grid" id="kpi-grid-maintenance"></div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Maintenance Cost Trend<span>Per-day total, USD — grows as predictive triggers fire</span></div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartMaintCost"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Preventive vs. Corrective<span>Cost &amp; average repair time</span></div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartMaintType"></canvas></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Maintenance Type Summary<span>Cost efficiency by category</span></div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="tableMaintType">
+              <thead><tr><th>Type</th><th>Events</th><th>Avg. Repair Time</th><th>Total Cost</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== PAGE: RUN INGESTION ===================== -->
+      <section class="page" id="page-etl">
+        <div class="section-heading">
+          <h1>Run Ingestion Pipeline</h1>
+          <p>Ingest, validate, detect anomalies, and publish sensor telemetry to the analytics layer. Each run executes real code against Postgres and a trained IsolationForest model — nothing here is a canned animation.</p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Pipeline Status<span id="etlSummary">Idle · last run not yet triggered</span></div>
+            <button class="btn btn-primary" id="runEtlBtn"><span>▶</span><span>Run pipeline now</span></button>
+          </div>
+
+          <div class="etl-pipeline" id="etlPipeline">
+            <div class="etl-stage" data-stage="ingest">
+              <div class="etl-square"><div class="fill"></div><span class="glyph">📥</span></div>
+              <div class="etl-stage-name">Ingest</div>
+              <div class="etl-stage-desc">Stream readings from 500 sensors</div>
+              <div class="etl-stage-status">Waiting</div>
+            </div>
+            <div class="etl-stage" data-stage="validate">
+              <div class="etl-square"><div class="fill"></div><span class="glyph">✅</span></div>
+              <div class="etl-stage-name">Validate</div>
+              <div class="etl-stage-desc">Schema &amp; range checks</div>
+              <div class="etl-stage-status">Waiting</div>
+            </div>
+            <div class="etl-stage" data-stage="detect">
+              <div class="etl-square"><div class="fill"></div><span class="glyph">🧠</span></div>
+              <div class="etl-stage-name">Detect Anomalies</div>
+              <div class="etl-stage-desc">Score faults &amp; PM triggers</div>
+              <div class="etl-stage-status">Waiting</div>
+            </div>
+            <div class="etl-stage" data-stage="publish">
+              <div class="etl-square"><div class="fill"></div><span class="glyph">📡</span></div>
+              <div class="etl-stage-name">Publish</div>
+              <div class="etl-stage-desc">Refresh dashboard cache</div>
+              <div class="etl-stage-status">Waiting</div>
+            </div>
+          </div>
+
+          <div class="source-grid" id="sourceGrid"></div>
+
+          <div class="etl-log" id="etlLog"></div>
+        </div>
+      </section>
+
+      <div class="foot-note">PulseGrid · Live from PostgreSQL <span id="footRange"></span> · <span class="badge-source">Seeded from sensor_maintenance_data.csv, streamed live thereafter</span></div>
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ <span id="toastMsg">Data refreshed</span></div>
+
+<script src="js/vendor/chart.umd.js"></script>
+<script src="js/vendor/luxon.min.js"></script>
+<script src="js/vendor/chartjs-adapter-luxon.umd.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

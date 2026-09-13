@@ -1,0 +1,56 @@
+HOW TO RUN THIS APP (Windows)
+==============================
+
+PREREQUISITE: PostgreSQL must be installed and running (you said you
+already have this set up).
+
+FIRST TIME ONLY - create the database (skip if already done):
+  Open a terminal with access to psql, and run:
+    CREATE USER pulsegrid WITH PASSWORD 'pulsegrid_dev_pw';
+    CREATE DATABASE pulsegrid OWNER pulsegrid;
+  (If you use a different username/password, edit .env after the first
+  run of start.bat creates it from .env.example.)
+
+THEN:
+  1. Extract this whole folder somewhere permanent (Desktop, not Downloads).
+  2. Double-click start.bat.
+
+What it does automatically:
+  - Installs Python packages if needed
+  - Creates .env from .env.example on first run
+  - Checks the database is reachable (tells you exactly what to fix if not)
+  - Seeds the database + trains the model, but ONLY on first run - it
+    checks if data already exists first, so re-running start.bat later
+    won't create duplicate data
+  - Starts the server and waits for it to actually respond (polls,
+    doesn't guess a fixed delay) before opening your browser at
+    http://127.0.0.1:8000
+
+The background simulator starts automatically once the server is
+running, generating a new batch of readings every 2 seconds and pushing
+live results to the dashboard - you don't need to do anything for that
+to happen, it's not something you trigger. The "Run Ingestion" page's
+button is for triggering an EXTRA manual run on top of that, if you
+want to see one specific run's stage-by-stage breakdown up close.
+
+TO STOP: close the black terminal window, or press CTRL+C in it.
+
+IF SOMETHING GOES WRONG:
+  start.bat prints a specific [ERROR] message for each thing that can
+  fail (Python missing, packages failed to install, database
+  unreachable, seeding failed). Screenshot whichever one you hit.
+
+WHAT WAS FIXED IN THIS VERSION:
+  A real bug in frontend/js/app.js: after clicking "Run Pipeline Now"
+  on the Run Ingestion page, the display briefly showed the correct
+  run number, then got overwritten with "Run #undefined" a moment
+  later. Root cause: the manual-trigger button reads the run ID from
+  a field called "id" (matching the API's JSON response), but the
+  WebSocket broadcast that follows every run - including manual ones -
+  uses a field called "run_id" instead. The same display-update
+  function was being called with both shapes of object without
+  normalizing between them. Fixed by normalizing the field name at the
+  one call site that needed it; verified by clicking the real button
+  in a real browser multiple times and confirming the run number
+  displays correctly and stays correct after the WebSocket message
+  arrives.
